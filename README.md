@@ -1,90 +1,128 @@
-# ![](https://github.com/CTFd/CTFd/blob/master/CTFd/themes/core/static/img/logo.png?raw=true)
+# 自建 CTF 平台
 
-![CTFd MySQL CI](https://github.com/CTFd/CTFd/workflows/CTFd%20MySQL%20CI/badge.svg?branch=master)
-![Linting](https://github.com/CTFd/CTFd/workflows/Linting/badge.svg?branch=master)
-[![MajorLeagueCyber Discourse](https://img.shields.io/discourse/status?server=https%3A%2F%2Fcommunity.majorleaguecyber.org%2F)](https://community.majorleaguecyber.org/)
-[![Documentation Status](https://api.netlify.com/api/v1/badges/6d10883a-77bb-45c1-a003-22ce1284190e/deploy-status)](https://docs.ctfd.io)
+平台:ununtu 20.4
 
-## What is CTFd?
+组件：
 
-CTFd is a Capture The Flag framework focusing on ease of use and customizability. It comes with everything you need to run a CTF and it's easy to customize with plugins and themes.
+- docker docker-compose
+- ctfd https://github.com/CTFd/CTFd
+- ctf-whale https://github.com/frankli0324/ctfd-whale
+- open vpn : kylemanna/openvpn
 
-![CTFd is a CTF in a can.](https://github.com/CTFd/CTFd/blob/master/CTFd/themes/core/static/img/scoreboard.png?raw=true)
 
-## Features
 
-- Create your own challenges, categories, hints, and flags from the Admin Interface
-  - Dynamic Scoring Challenges
-  - Unlockable challenge support
-  - Challenge plugin architecture to create your own custom challenges
-  - Static & Regex based flags
-    - Custom flag plugins
-  - Unlockable hints
-  - File uploads to the server or an Amazon S3-compatible backend
-  - Limit challenge attempts & hide challenges
-  - Automatic bruteforce protection
-- Individual and Team based competitions
-  - Have users play on their own or form teams to play together
-- Scoreboard with automatic tie resolution
-  - Hide Scores from the public
-  - Freeze Scores at a specific time
-- Scoregraphs comparing the top 10 teams and team progress graphs
-- Markdown content management system
-- SMTP + Mailgun email support
-  - Email confirmation support
-  - Forgot password support
-- Automatic competition starting and ending
-- Team management, hiding, and banning
-- Customize everything using the [plugin](https://docs.ctfd.io/docs/plugins/overview) and [theme](https://docs.ctfd.io/docs/themes/overview) interfaces
-- Importing and Exporting of CTF data for archival
-- And a lot more...
+## docker 安装
 
-## Install
+略过，网上教程较多 将docker-compose 也顺便装上
 
-1. Install dependencies: `pip install -r requirements.txt`
-   1. You can also use the `prepare.sh` script to install system dependencies using apt.
-2. Modify [CTFd/config.ini](https://github.com/CTFd/CTFd/blob/master/CTFd/config.ini) to your liking.
-3. Use `python serve.py` or `flask run` in a terminal to drop into debug mode.
-
-You can use the auto-generated Docker images with the following command:
-
-`docker run -p 8000:8000 -it ctfd/ctfd`
-
-Or you can use Docker Compose with the following command from the source repository:
-
-`docker-compose up`
-
-Check out the [CTFd docs](https://docs.ctfd.io/) for [deployment options](https://docs.ctfd.io/docs/deployment/installation) and the [Getting Started](https://docs.ctfd.io/tutorials/getting-started/) guide
-
-## Live Demo
-
-https://demo.ctfd.io/
-
-## Support
-
-To get basic support, you can join the [MajorLeagueCyber Community](https://community.majorleaguecyber.org/): [![MajorLeagueCyber Discourse](https://img.shields.io/discourse/status?server=https%3A%2F%2Fcommunity.majorleaguecyber.org%2F)](https://community.majorleaguecyber.org/)
-
-If you prefer commercial support or have a special project, feel free to [contact us](https://ctfd.io/contact/).
-
-## Managed Hosting
-
-Looking to use CTFd but don't want to deal with managing infrastructure? Check out [the CTFd website](https://ctfd.io/) for managed CTFd deployments.
-
-## MajorLeagueCyber
-
-CTFd is heavily integrated with [MajorLeagueCyber](https://majorleaguecyber.org/). MajorLeagueCyber (MLC) is a CTF stats tracker that provides event scheduling, team tracking, and single sign on for events.
-
-By registering your CTF event with MajorLeagueCyber users can automatically login, track their individual and team scores, submit writeups, and get notifications of important events.
-
-To integrate with MajorLeagueCyber, simply register an account, create an event, and install the client ID and client secret in the relevant portion in `CTFd/config.py` or in the admin panel:
-
-```python
-OAUTH_CLIENT_ID = None
-OAUTH_CLIENT_SECRET = None
+```
+docker swarm init
+docker node update --label-add "name=linux-1" $(docker node ls -q)
 ```
 
-## Credits
 
-- Logo by [Laura Barbera](http://www.laurabb.com/)
-- Theme by [Christopher Thompson](https://github.com/breadchris)
-- Notification Sound by [Terrence Martin](https://soundcloud.com/tj-martin-composer)
+
+## open vpn
+
+参考 http://www.kyo86.com/2022/10/08/openvpn/
+
+open vpn 通过 docker安装
+
+```
+#创建newwork，后面靶机也放在这个network中，用户连接ovpn后可直接访问靶机
+docker network create --driver bridge --subnet 172.18.0.0/24 --gateway 172.18.0.1 ovpn_network
+
+docker pull kylemanna/openvpn
+
+OVPN_DATA="ovpn-data-example"
+
+#初始化数据
+docker volume create --name $OVPN_DATA
+docker run -v $OVPN_DATA:/etc/openvpn --rm kylemanna/openvpn ovpn_genconfig -u udp://[ipordomain]
+docker run -v $OVPN_DATA:/etc/openvpn --rm -it kylemanna/openvpn ovpn_initpki
+```
+
+修改 server 配置文件
+
+`/var/lib/docker/volumes/ovpn-data-example/_data/openvpn.conf`
+
+```
+server 192.168.255.0 255.255.255.0
+verb 3
+key /etc/openvpn/pki/private/[修改为自己的ip].key
+ca /etc/openvpn/pki/ca.crt
+cert /etc/openvpn/pki/issued/[修改为自己的ip].crt
+dh /etc/openvpn/pki/dh.pem
+tls-auth /etc/openvpn/pki/ta.key
+key-direction 0
+keepalive 10 60
+persist-key
+persist-tun
+
+proto tcp
+# Rely on Docker to do port mapping, internally always 1194
+port 443
+dev tun0
+status /tmp/openvpn-status.log
+
+user nobody
+group nogroup
+comp-lzo
+
+### Route Configurations Below
+route 192.168.254.0 255.255.255.0
+
+### Push Configurations Below
+# push "block-outside-dns"
+# push "dhcp-option DNS 8.8.8.8"
+# push "dhcp-option DNS 8.8.4.4"
+# push "comp-lzo no"
+push "route 172.18.0.0 255.255.255.0"
+
+```
+
+
+
+`/var/lib/docker/volumes/ovpn-data-example/_data/ovpn_env.sh` 中的 declare -x OVPN_DISABLE_PUSH_BLOCK_DNS=0 改为 1
+
+继续操作启动  ovpn
+
+```
+docker run --name=openvpn -v $OVPN_DATA:/etc/openvpn -d -p 443:443/tcp --cap-add=NET_ADMIN --net  ctfd_frp-containers kylemanna/openvpn
+
+#创建用户 .ovpn
+docker run -v $OVPN_DATA:/etc/openvpn --rm -it kylemanna/openvpn easyrsa build-client-full asp nopass
+docker run -v $OVPN_DATA:/etc/openvpn --rm kylemanna/openvpn ovpn_getclient asp > asp.ovpn
+
+#检查 asp.ovpn  确保 端口 协议 正确  443 tcp
+#注释asp.ovpn 中的 redirect-gateway def1
+
+```
+
+
+
+## ctfd & ctf-whale 安装 
+
+修改ctf-whale 代码，集成在 ctfd中
+
+修改 docker-compose 和 Dockfile 
+
+修改为 靶机以容器启动，返回容器IP到前端，不直接暴露到公网
+
+用户使用openvpn连接后进行访问
+
+ctfd 版本： 3.5.0
+
+```
+git clone https://github.com/AspirePig/ctfd_with_docker
+cd ctfd_with_docker
+```
+
+编译启动
+
+```
+docker-compose build
+docker-compose up -d 
+```
+
+不出意外可以访问 http://ip:8000 进行初始化配置
